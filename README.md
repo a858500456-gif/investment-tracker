@@ -104,7 +104,10 @@
    - 上櫃：`https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes`
    - 興櫃：`https://www.tpex.org.tw/openapi/v1/tpex_esb_latest_statistics`
    - 上櫃、興櫃的欄位名稱沒有實際確認過，程式用多個候選欄位名稱自動判斷。若抓到 0 筆，執行紀錄會印出實際欄位名稱。
-3. 存成 `prices.json` 並 commit，GitHub Pages 自動更新。
+3. 每個來源下載失敗會重試 3 次（櫃買中心的檔案約 5MB，曾發生連線中斷 IncompleteRead）。
+4. 先讀入上一次的 `prices.json` 再覆蓋新抓到的價格，所以某個來源整個失敗時，那些股票會保留上次的價格，不會消失。
+5. 存成 `prices.json` 並 commit。
+6. **用 `GITHUB_TOKEN` 推送的 commit 不會觸發 GitHub Pages 重新發布**（2026/10/19 實際遇到：repository 的 prices.json 有更新，網站卻一直是舊的），所以最後一步用 `gh api -X POST repos/{repo}/pages/builds` 主動要求重新發布，workflow 需要 `pages: write` 權限。
 
 `prices.json` 格式：
 ```json
