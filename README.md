@@ -97,10 +97,10 @@
 
 網頁無法直接讀證交所 API（對方不允許跨網站讀取，已實測），所以改用 GitHub Actions：
 
-1. 每個交易日台灣時間 17:07、21:07、隔天 08:07 執行 `update-prices.yml`（也可在 Actions 分頁按 Run workflow 手動執行）。
+1. 每個交易日台灣時間 17:07、21:07，以及隔天早上 08:07 執行 `update-prices.yml`（也可在 Actions 分頁按 Run workflow 手動執行）。
 2. 抓取：
    - 上市：`https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL`（欄位 `Code`、`ClosingPrice`、`Date` 為民國年 `1151016`，已確認）
-   - 上市備援：`https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json`（格式為 `{date, fields, data}`）。openapi 曾在 2026/10/19 晚上仍停在 10/16 的資料，所以加了這個來源，同一檔取日期較新的。
+   - 上市備援：`https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json`（實測回傳的是開頭帶 BOM 的 CSV，程式會自動判斷 JSON 或 CSV）。openapi 曾在 2026/10/19 晚上仍停在 10/16 的資料，所以加了這個來源，同一檔取日期較新的。
    - 上櫃：`https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes`
    - 興櫃：`https://www.tpex.org.tw/openapi/v1/tpex_esb_latest_statistics`
    - 上櫃、興櫃的欄位名稱沒有實際確認過，程式用多個候選欄位名稱自動判斷。若抓到 0 筆，執行紀錄會印出實際欄位名稱。
