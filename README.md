@@ -49,6 +49,7 @@
 - 每筆現價記錄來源 `src`：`auto`（收盤價）、`manual`（自己填）、未標記（新增買進時用的買進價）。
   - 規則：自動收盤價日期較新就覆蓋；同一天時，手動填的優先。
 - 每次現價更新會記一筆「資產走勢」快照（日期、市值、成本）。
+- 首頁螢幕下方顯示「持股收盤價日期」，是使用者持股實際用到的收盤價日期（上市、上櫃公布時間可能不同，所以會顯示範圍，例如 10/16～10/19）。
 
 ### 股票清單
 - 內建於 `index.html`（`STOCK_DATA`），來源是證交所 ISIN 公開資料，2026/10/19 版本，共 2,770 檔。
@@ -99,6 +100,7 @@
 1. 每個交易日台灣時間 17:07、21:07 執行 `update-prices.yml`（也可在 Actions 分頁按 Run workflow 手動執行）。
 2. 抓取：
    - 上市：`https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL`（欄位 `Code`、`ClosingPrice`、`Date` 為民國年 `1151016`，已確認）
+   - 上市備援：`https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json`（格式為 `{date, fields, data}`）。openapi 曾在 2026/10/19 晚上仍停在 10/16 的資料，所以加了這個來源，同一檔取日期較新的。
    - 上櫃：`https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes`
    - 興櫃：`https://www.tpex.org.tw/openapi/v1/tpex_esb_latest_statistics`
    - 上櫃、興櫃的欄位名稱沒有實際確認過，程式用多個候選欄位名稱自動判斷。若抓到 0 筆，執行紀錄會印出實際欄位名稱。
