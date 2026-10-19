@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
 
 jobs:
   update:
@@ -126,8 +125,3 @@ jobs:
           git diff --cached --quiet || git commit -m "更新收盤價 $(date -u +%F)"
           git push
 
-      - name: 重新發布網站
-        # 小幫手存的檔案不會自動觸發 GitHub Pages 更新，所以這裡主動請 GitHub 重新發布
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api -X POST "repos/${{ github.repository }}/pages/builds" --silent && echo "已請 GitHub 重新發布網站"
