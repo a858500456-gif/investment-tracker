@@ -13,19 +13,21 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 抓取上市、上櫃、興櫃收盤價
         run: |
           python3 - <<'PY'
           import json, re, urllib.request, datetime, sys
 
-          SOURCES = {
-              "twse": "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
-              "tpex": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
-              "esb":  "https://www.tpex.org.tw/openapi/v1/tpex_esb_latest_statistics",
-          }
-          CODE_KEYS  = ["Code", "SecuritiesCompanyCode", "CompanyCode", "證券代號"]
+          # 同一個市場可放多個來源，同一檔股票取日期較新的那個
+          SOURCES = [
+              ("twse", "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"),
+              ("twse", "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json"),
+              ("tpex", "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"),
+              ("esb",  "https://www.tpex.org.tw/openapi/v1/tpex_esb_latest_statistics"),
+          ]
+          CODE_KEYS  = ["Code", "SecuritiesCompanyCode", "CompanyCode", "證券代號", "代號"]
           PRICE_KEYS = ["ClosingPrice", "Close", "LatestPrice", "收盤價", "Average", "AveragePrice", "PreviousAveragePrice"]
           DATE_KEYS  = ["Date", "日期"]
 
@@ -35,7 +37,7 @@ jobs:
                   return f"{int(s[:3]) + 1911:04d}-{s[3:5]}-{s[5:]}"
               if len(s) == 8:
                   return f"{s[:4]}-{s[4:6]}-{s[6:]}"
-              return datetime.date.today().isoformat()
+              return ""
 
           def to_price(v):
               try:
@@ -44,25 +46,39 @@ jobs:
               except Exception:
                   return None
 
+          def to_rows(data):
+              # openapi 回傳 list；證交所網站回傳 {"date":..., "fields":[...], "data":[[...]]}
+              if isinstance(data, list):
+                  return data
+              if isinstance(data, dict) and "fields" in data and "data" in data:
+                  rows = [dict(zip(data["fields"], r)) for r in data["data"]]
+                  for r in rows:
+                      r.setdefault("Date", data.get("date", ""))
+                  return rows
+              return []
+
           prices, dates, ok = {}, {}, 0
-          for name, url in SOURCES.items():
+          for name, url in SOURCES:
               try:
                   req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"})
-                  rows = json.load(urllib.request.urlopen(req, timeout=60))
-                  n = 0
+                  rows = to_rows(json.load(urllib.request.urlopen(req, timeout=60)))
+                  n, newest = 0, ""
                   for r in rows:
                       code = next((str(r[k]).strip() for k in CODE_KEYS if r.get(k)), None)
                       price = next((to_price(r[k]) for k in PRICE_KEYS if to_price(r.get(k))), None)
                       if not code or price is None:
                           continue
-                      d = to_date(next((r[k] for k in DATE_KEYS if r.get(k)), ""))
-                      prices[code] = [round(price, 4), d]
-                      dates[name] = max(dates.get(name, ""), d)
+                      d = to_date(next((r[k] for k in DATE_KEYS if r.get(k)), "")) or datetime.date.today().isoformat()
+                      if code not in prices or d > prices[code][1]:
+                          prices[code] = [round(price, 4), d]
+                      newest = max(newest, d)
                       n += 1
-                  print(f"{name}: {n} 筆", "（欄位：" + ", ".join(rows[0].keys()) + "）" if rows and n == 0 else "")
+                  if n:
+                      dates[name] = max(dates.get(name, ""), newest)
+                  print(f"{name} {url[:60]}: {n} 筆，日期 {newest or '-'}", "（欄位：" + ", ".join(rows[0].keys()) + "）" if rows and n == 0 else "")
                   ok += n > 0
               except Exception as e:
-                  print(f"{name}: 失敗 {e}")
+                  print(f"{name} {url[:60]}: 失敗 {e}")
 
           if not ok:
               sys.exit("全部資料來源都抓取失敗")
